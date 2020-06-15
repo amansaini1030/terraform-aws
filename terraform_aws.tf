@@ -1,25 +1,23 @@
-//CREATING THE MAIN PROVIDER
-
-
+// To create AWS provider to the terraform
 
 
 provider "aws" {
     region         = "ap-south-1"
     profile        = "default"
+
 }
 
-//Creating Key
+// To create Key
+
 resource "tls_private_key" "tls_key" {
   algorithm = "RSA"
+
 }
 
+// To generate the Key-Value Pair
 
-
-
-
-
-//Generating Key-Value Pair
 resource "aws_key_pair" "generated_key" {
+
 
     depends_on = [
         tls_private_key.tls_key,
@@ -27,31 +25,25 @@ resource "aws_key_pair" "generated_key" {
   key_name   = "saini-key-1"
   public_key = "${tls_private_key.tls_key.public_key_openssh}"
 
+
 }
 
-
-
-
-
-
-//Saving Private Key PEM File
+// For saving our private key file locally
 resource "local_file" "key-file" {
+
 
     depends_on = [
         tls_private_key.tls_key,
     ]
 
+
   content  = "${tls_private_key.tls_key.private_key_pem}"
   filename = "saini-key-1.pem"
+
 }
 
+// To create security group
 
-
-
-
-
-
-//CREATING THE SECURITY GROUP
 
 resource "aws_security_group" "saini-sg" {
     name               = "mysec"
@@ -76,13 +68,10 @@ resource "aws_security_group" "saini-sg" {
     }
 }
 
+// To create the instance and then installing Git , Docker 
+// After installing it will create a Docker Container which will launch apache 
+// webserver by using the image : saini420boy/webphpserver:a1
 
-
-
-
-
-
-//CREATING THE INSTANCE
 
 resource "aws_instance" "saininewos"{
     ami                 = "ami-0447a12f28fddb066"
@@ -90,6 +79,7 @@ resource "aws_instance" "saininewos"{
     key_name            = "${aws_key_pair.generated_key.key_name}"
     availability_zone   = "ap-south-1a"
     security_groups     = ["${aws_security_group.saini-sg.name}","default"]
+
 
     
     connection{
@@ -109,31 +99,27 @@ resource "aws_instance" "saininewos"{
         ]
     }
 
+
     tags = {
         Name = "saininewos"  
     }
-  
+
 }
 
+// It will create a EBS Volume of size 5 Gib
 
-
-
-
-
-//CREATING THE EBS VOLUME
 
 resource "aws_ebs_volume" "ebs_vol_1" {
     availability_zone    = aws_instance.saininewos.availability_zone
     size                = 5
     tags = {
         Name             = "ebs_vol_1"
-    }
+ }
+
 }
+    
+// Now we will attach the EBS Volume created to the Instance 
 
-
-
-
-//ATTACHING THE EBS VOLUME
 
 resource "aws_volume_attachment" "ebs_vol_attach" {
     device_name            = "/dev/sdf"
@@ -160,14 +146,13 @@ resource "null_resource" "nullremote1"{
             "sudo mkfs.ext4 /dev/xvdf",
             "sudo mount /dev/xvdf /webpage",
             "sudo rm -rf /webpage/*",
-            "sudo git clone https://github.com/saini420boy/devopsal3.git  /webpage/"
+            "sudo git clone https://github.com/saini420boy/devopsal3.git/webpage/"
         ]
     }
 }
 
+// To create the S3 Bucket
 
-
-//CREATING THE BUCKET
 
 resource "aws_s3_bucket" "saini-bucket-1" {
     bucket                = "saini-bucket-1"
@@ -177,13 +162,14 @@ resource "aws_s3_bucket" "saini-bucket-1" {
         Name              = "s3_bucket"
     }
 }
-locals {
+
+locals { 
     s3_origin_id          = "s3_origin"
+
 }
+    
+// To Upload the Files to the S3 bucket 
 
-
-
-//UPLOADING THE FILE TO THE BUCKET
 
 resource "aws_s3_bucket_object" "object" {
     
@@ -193,12 +179,12 @@ resource "aws_s3_bucket_object" "object" {
     bucket                = "saini-bucket-1"
     key                   = "pubg.png"
     source                = "pubg.png"
-    acl                   = "public-read"
+    acl                   = "public-read"     
+
 }
+    
+// It will create the CloudFront Distribution which will provide CDN 
 
-
-
-//CREATING THE CLOUDFRONT DISTRIBUTION
 
 resource "aws_cloudfront_distribution" "cloudfront_dist" {
     origin{
@@ -209,18 +195,22 @@ resource "aws_cloudfront_distribution" "cloudfront_dist" {
     enabled               = true
     is_ipv6_enabled       = true
 
+
     default_cache_behavior {
         allowed_methods   = ["DELETE","PATCH","OPTIONS","POST","PUT","GET", "HEAD"]
         cached_methods    = ["GET", "HEAD"]
         target_origin_id  = local.s3_origin_id
 
+
         forwarded_values {
             query_string  = false
+
 
             cookies {
                 forward   = "none"
             }
         }
+
 
         min_ttl                = 0
         default_ttl            = 3600
@@ -229,19 +219,18 @@ resource "aws_cloudfront_distribution" "cloudfront_dist" {
         viewer_protocol_policy = "allow-all"
     }
 
+
     restrictions {
         geo_restriction {
             restriction_type = "none"
         }
     }
 
+
     viewer_certificate {
         cloudfront_default_certificate = true
     }
 }
-
-
-
-
+    
 
 
